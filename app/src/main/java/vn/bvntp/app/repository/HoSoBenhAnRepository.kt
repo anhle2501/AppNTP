@@ -1,8 +1,8 @@
 package vn.bvntp.app.repository
 
 import android.content.Context
-import android.util.Log
 import com.google.gson.stream.JsonReader
+import com.google.gson.stream.JsonToken
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
@@ -44,11 +44,11 @@ class HoSoBenhAnRepository(val hoSoBenhAnService: HoSoBenhAnService) {
 
         val mediaType = "application/json".toMediaType()
         val body =
-            "\n{\r\n    \"ListID\": $listId,\r\n    \"MaVaoVien\": \"$maVaoVien\"\r\n}".toRequestBody(
+            "\n{\r\n    \"ListID\": $listId,\r\n   \"MaVaoVien\": \"$maVaoVien\"\r\n}".toRequestBody(
                 mediaType
             )
         val request =
-            Request.Builder().url("http://115.75.5.67:8089/api/hsba/LoadInVanBanKy").post(body)
+            Request.Builder().url("http://bvntp.com:8089/api/hsba/LoadInVanBanKy").post(body)
                 .addHeader("Authorization", accessToken ?: "")
                 .addHeader("Content-Type", "application/json").build()
 
@@ -66,7 +66,13 @@ class HoSoBenhAnRepository(val hoSoBenhAnService: HoSoBenhAnService) {
             fun writePdfbyte(reader: JsonReader, writer: BufferedOutputStream) {
                 reader.beginArray()
                 while (reader.hasNext()) {
-                    writer.write(reader.nextInt())
+                    if (reader.peek() == JsonToken.NUMBER) {
+                        writer.write(reader.nextInt())
+                    } else {
+                        // If it's not an integer, skip the value or handle it accordingly
+                        reader.skipValue()
+                    }
+
                 }
                 reader.endArray()
             }
@@ -75,6 +81,9 @@ class HoSoBenhAnRepository(val hoSoBenhAnService: HoSoBenhAnService) {
             while (readerJsonReader.hasNext()) {
                 var name = readerJsonReader.nextName()
                 if (name.equals("Data")) {
+                    if (name!!.contentEquals("null")){
+                        throw Exception("Không có dữ liệu hồ sơ bệnh án")
+                    }
                     writePdfbyte(readerJsonReader, fileOutput)
                 } else {
                     readerJsonReader.skipValue()
@@ -89,20 +98,19 @@ class HoSoBenhAnRepository(val hoSoBenhAnService: HoSoBenhAnService) {
             onResult(Result.success(file))
 
         } catch (e: IllegalStateException) {
-            val j = IllegalStateException("Không có hồ sơ bệnh án!")
+            val j = IllegalStateException("")
             onResult(Result.failure(j))
         } catch (e: OutOfMemoryError) {
             val j = OutOfMemoryError("Hết bộ nhớ !")
             onResult(Result.failure(j))
         } catch (e: JSONException) {
-            val j = JSONException("Không có hồ sơ bệnh án!")
+            val j = JSONException("")
             onResult(Result.failure(j))
         } catch (e: InterruptedException) {
             val i = InterruptedException("Người dùng dừng tải tập tin !")
             onResult(Result.failure(i))
         } catch (e: Exception) {
-            val n = Exception("Không nhận được dữ liệu từ server !")
-            onResult((Result.failure(n)))
+            onResult((Result.failure(e)))
         } finally {
 
         }
@@ -125,7 +133,6 @@ class HoSoBenhAnRepository(val hoSoBenhAnService: HoSoBenhAnService) {
                     ) {
                         if (response.isSuccessful) {
                             val lichSuDieuTriResponse = response.body()
-                            Log.d("lichSuDieuTriResponse", lichSuDieuTriResponse.toString())
                             lichSuDieuTriResponse?.let {
                                 onResult(Result.success(it))
                             }

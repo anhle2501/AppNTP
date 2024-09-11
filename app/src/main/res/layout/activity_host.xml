@@ -197,6 +197,9 @@
                         android:inputType="number"
                         android:maxLength="8"
                         android:textSize="20sp"
+                        android:imeOptions="actionDone"
+                        android:focusableInTouchMode="true"
+                        android:focusable="true"
                         android:text="@={hsbaViewModel._maBenhNhan}"
                     />
 

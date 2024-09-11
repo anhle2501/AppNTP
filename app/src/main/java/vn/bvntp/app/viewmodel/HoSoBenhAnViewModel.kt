@@ -62,12 +62,13 @@ class HoSoBenhAnViewModel(
 
     fun modelHoSoBenhAnView(context: Context, callBack: () -> Unit) {
         viewModelScope.launch {
+            toggleIsLock()
             _maVaoVien.value?.let {
                 _listId.value?.let { it1 ->
                     repository.getHoSoBenhAn(
                         context = context,
                         maVaoVien = it,
-                        listId = it1
+                        listId = it1,
                     ) {
                         if (it.isSuccess) {
                             it.onSuccess {
@@ -75,7 +76,11 @@ class HoSoBenhAnViewModel(
                                 temp = "file://" + it.absolutePath
 
                                 Log.d("temp", temp)
-                                launch { callBack() }
+                                Handler(Looper.getMainLooper()).post {
+                                    Toast.makeText(context, "Thành công", Toast.LENGTH_SHORT).show()
+                                }
+                                launch { callBack()
+                                    toggleIsLock() }
 
                             }
                         } else {
@@ -99,20 +104,32 @@ class HoSoBenhAnViewModel(
 
     fun modelLichSuVaoVienView(context: Context, next: () -> Unit) {
         viewModelScope.launch {
-
+            toggleIsLock()
             repository.getLichSuVaoVien(
                 context = context,
                 maBenhNhan = _maBenhNhan.value!!
             ) { result ->
                 result.onSuccess { lichSuDieuTriResponse ->
-                    if (lichSuDieuTriResponse.Success) {
+                    if (lichSuDieuTriResponse.Success && lichSuDieuTriResponse.Data.size != 0) {
                         // gom lich su dieu tri lai
-                        var filter =
-                            lichSuDieuTriResponse.Data.stream().map({ e -> e.MAVAOVIEN }).distinct()
+                        val filter =
+                            ArrayList(lichSuDieuTriResponse.Data.stream().map { e -> e.MAVAOVIEN }.distinct()
                                 .collect(
                                     Collectors.toList()
-                                )
-                        _lichSuDieuTri.postValue(filter as ArrayList<String>)
+                                ))
+                        _lichSuDieuTri.value = filter
+                        try {
+                            _maVaoVien.value = lichSuDieuTri.value?.get(0).toString()
+                        } catch (e: Exception) {
+                            Handler(Looper.getMainLooper()).post {
+                                Toast.makeText(
+                                    context,
+                                    "Bệnh nhân không có lịch sử khám bệnh",
+                                    Toast.LENGTH_SHORT
+                                ).show()
+                            }
+                        }
+
                         toggleIsLock()
                         next()
                     } else {

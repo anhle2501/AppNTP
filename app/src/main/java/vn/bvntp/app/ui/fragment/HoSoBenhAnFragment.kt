@@ -2,13 +2,17 @@ package vn.bvntp.app.ui.fragment
 
 import android.content.Intent
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import vn.bvntp.app.App
-import vn.bvntp.app.R
+import vn.bvntp.app.databinding.FragmentHoSoBenhAnBinding
 import vn.bvntp.app.ui.activity.PdfViewer
 import vn.bvntp.app.viewmodel.HoSoBenhAnViewModel
 
@@ -35,29 +39,62 @@ class HoSoBenhAnFragment : Fragment() {
         }
     }
 
+    private var _binding: FragmentHoSoBenhAnBinding ? = null
+    private val binding get() = _binding!!
+
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
+
+        _binding = FragmentHoSoBenhAnBinding.inflate(inflater, container, false)
+        val view = binding.root
+
         // Inflate the layout for this fragment
         val appContainer = (requireActivity().applicationContext as App).container
         val hsbaViewModel = ViewModelProvider(requireActivity(), appContainer.hsbaViewModelFactory).get(
             HoSoBenhAnViewModel::class.java)
 
+        binding.hsbaViewModel = hsbaViewModel
+
         val context = requireContext()
-        hsbaViewModel.modelHoSoBenhAnView(
+        hsbaViewModel.modelLichSuVaoVienView(
             context
         ) {
-            val intent = Intent(
-                context, PdfViewer::class.java
-            )
-            intent.putExtra(
-                "fileUri", hsbaViewModel.getTemp()
-            )
-            context.startActivity(intent)
         }
 
-        return inflater.inflate(R.layout.fragment_ho_so_benh_an, container, false)
+        hsbaViewModel.isLock.observe(viewLifecycleOwner, Observer { isLock ->
+            // Update UI, e.g., show or hide a progress bar
+            if (isLock) {
+                // Show progress bar
+                binding.loadingIcon.visibility = View.VISIBLE
+                binding.textHide.visibility = View.INVISIBLE
+            } else {
+                // Hide progress bar
+                binding.textHide.visibility = View.VISIBLE
+                binding.loadingIcon.visibility = View.GONE
+            }
+        })
+
+        hsbaViewModel.maVaoVien.observe(viewLifecycleOwner, Observer {
+            Handler(Looper.getMainLooper()).post {
+                Toast.makeText(context, "Đang xử lý mã vào viện: " + hsbaViewModel.maVaoVien.value, Toast.LENGTH_SHORT).show()
+            }
+            hsbaViewModel.modelHoSoBenhAnView(context) {
+                val intent = Intent(
+                    context, PdfViewer::class.java
+                )
+                intent.putExtra(
+                    "fileUri", hsbaViewModel.getTemp()
+                )
+                context.startActivity(intent)
+            }
+        })
+
+
+
+
+        return view
 
     }
 
